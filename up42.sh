@@ -2,6 +2,7 @@
 
 # up42.sh --- A simple cURL based API connector for UP42.
 
+
 # Copyright (C) 2020 UP42 GmbH
 
 # Author: António P. P. Almeida <antonio.almeida@up42.com>
@@ -46,10 +47,12 @@ STAT=$(command -v $STATCMD) || exit 13
 ## Common cURL options.
 CURLOPTS='-L -s'
 
-BASE_URL=https://api.up42.com
+## If UP42_BASE_URL is defined in the environment then use
+## it. Otherwise use the default production server URL.
+BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -o <operation> [-b <request body>] [-c <config file>] [-q <query string params>]"
+    echo "Usage: $SCRIPTNAME -o <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-q <query string params> [-w <workspace ID>]]"
 }
 
 ## Check the minimum number of arguments.
@@ -86,20 +89,25 @@ if [ ${SETUP_DIR-1} -eq  0 ]; then
 fi
 
 ## Read the options.
-while getopts b:c:o:q: OPT; do
+while getopts a:b:c:o:q:w: OPT; do
     case $OPT in
+        a|+a)
+            ASSET_ID="$OPTARG"
+            ;;
         b|+b)
             REQ_BODY="$OPTARG"
             ;;
         c|+c)
             CONFIG_FILE="$OPTARG"
             ;;
-
         o|+o)
             OPERATION="$OPTARG"
             ;;
         q|+q)
             QUERY_PARAMS="$OPTARG"
+            ;;
+        w|+w)
+            WORKSPACE_ID="$OPTARG"
             ;;
         *)
             print_usage
@@ -181,13 +189,73 @@ function handle_token() {
 
 ## Performs a catalog search given a request body containing the STAC
 ## parameters.
-## $1: request body (JSON document)
+## $1: request body (JSON document).
 ## Returns: a JSON document with the response or an error.
 function do_search() {
     ## Get the search URL.
     local search_url=$(build_url "/catalog/stac/search")
     # Issue the request.
-    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $search_url
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $search_url
+}
+
+## $1: request body (JSON document).
+## $2: workspace ID.
+function do_order_placement() {
+    ## Get the order placement URL.
+    local place_order_url=$(build_url "/workspaces/$2/orders")
+    # Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $place_order_url
+}
+
+## $1: request body (JSON document).
+## $2: workspace ID.
+function do_order_estimation() {
+    ## Get the order estimation URL.
+    local estimate_order_url=$(build_url "/workspaces/$2/orders/estimate")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $estimate_order_url
+}
+
+## $1: workspace ID.
+function do_order_list() {
+    ## Get the order list URL.
+    local order_list_url=$(build_url "/workspaces/$1/orders/")
+    ## Issue the request.
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $order_list_url
+}
+
+## $1: workspace ID.
+function do_asset_list() {
+    ## Get the asset list URL.
+    local asset_list_url=$(build_url "/workspaces/$1/assets/")
+    ## Issue the request.
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $asset_list_url
+}
+
+## $1: workspace ID.
+## $2: asset ID.
+function do_asset_info() {
+    ## Get the asset list URL.
+    local asset_url=$(build_url "/workspaces/$1/assets/$2")
+    ## Issue the request.
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $asset_url
+}
+
+## $1: request body (JSON document).
+## $2: workspace ID.
+## $3: asset ID.
+function do_asset_download_url() {
+    ## Download URL information for an asset endpoint.
+    local download_asset_url=$(build_url "/workspaces/$2/assets/$3/downloadUrl")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $download_asset_url
 }
 
 ## Read the configuration.
@@ -197,9 +265,41 @@ TOKEN_FILE="$(pwd)/${PROJECT_ID}_UP42_token.txt"
 
 ## Perform the API operation,
 case "$OPERATION" in
-    "search") # catalog search
+    "search")# do a catalog search
         handle_token
-        do_search $REQ_BODY
+        do_search "$REQ_BODY"
+        ;;
+    "list-orders") # get all orders
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_order_list "$WORKSPACE_ID"
+        ;;
+    "estimate-order") # estimate an order cost
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_order_estimation "$REQ_BODY" "$WORKSPACE_ID"
+        ;;
+    "place-order") # place an order
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_order_placement "$REQ_BODY" "$WORKSPACE_ID"
+        ;;
+    "list-assets") # get all assets
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_asset_list "$WORKSPACE_ID"
+        ;;
+    "get-asset-info") # list the information about a given asset
+        validate_uuid "$ASSET_ID"
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_asset_info "$WORKSPACE_ID" "$ASSET_ID"
+        ;;
+    "get-asset-download-url")
+        validate_uuid "$ASSET_ID"
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_asset_download_url "$REQ_BODY" "$WORKSPACE_ID" "$ASSET_ID"
         ;;
     *)
         print_usage
