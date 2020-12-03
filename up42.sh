@@ -52,8 +52,9 @@ CURLOPTS='-L -s'
 BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -o <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-q <query string params> [-w <workspace ID>]]"
+    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-o <order ID>][-q <query string params> [-w <workspace ID>]]"
 }
+
 
 ## Check the minimum number of arguments.
 if [ $# -lt 2 ]; then
@@ -89,7 +90,7 @@ if [ ${SETUP_DIR-1} -eq  0 ]; then
 fi
 
 ## Read the options.
-while getopts a:b:c:o:q:w: OPT; do
+while getopts a:b:c:f:o:q:w: OPT; do
     case $OPT in
         a|+a)
             ASSET_ID="$OPTARG"
@@ -100,8 +101,11 @@ while getopts a:b:c:o:q:w: OPT; do
         c|+c)
             CONFIG_FILE="$OPTARG"
             ;;
-        o|+o)
+        f|f+)
             OPERATION="$OPTARG"
+            ;;
+        o|+o)
+            ORDER_ID="$OPTARG"
             ;;
         q|+q)
             QUERY_PARAMS="$OPTARG"
@@ -229,6 +233,26 @@ function do_order_list() {
 }
 
 ## $1: workspace ID.
+## $2: order ID.
+function do_order_info() {
+    ## Get the order list URL.
+    local order_info_url=$(build_url "/workspaces/$1/orders/$2")
+    ## Issue the request.
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $order_info_url
+}
+
+## $1: workspace ID.
+## $2: order ID.
+function do_order_metadata() {
+    ## Get the order list URL.
+    local order_metadata_url=$(build_url "/workspaces/$1/orders/$2/metadata")
+    ## Issue the request.
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $order_metadata_url
+}
+
+## $1: workspace ID.
 function do_asset_list() {
     ## Get the asset list URL.
     local asset_list_url=$(build_url "/workspaces/$1/assets/")
@@ -247,15 +271,14 @@ function do_asset_info() {
           -H "Authorization: Bearer $UP42_TOKEN" $asset_url
 }
 
-## $1: request body (JSON document).
-## $2: workspace ID.
-## $3: asset ID.
+## $1: workspace ID.
+## $2: asset ID.
 function do_asset_download_url() {
     ## Download URL information for an asset endpoint.
-    local download_asset_url=$(build_url "/workspaces/$2/assets/$3/downloadUrl")
+    local download_asset_url=$(build_url "/workspaces/$1/assets/$2/downloadUrl")
     ## Issue the request.
-    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $download_asset_url
+    $CURL $CURLOPTS -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" $download_asset_url
 }
 
 ## Read the configuration.
@@ -273,6 +296,18 @@ case "$OPERATION" in
         validate_uuid "$WORKSPACE_ID"
         handle_token
         do_order_list "$WORKSPACE_ID"
+        ;;
+    "get-order-info") # get the information for an order
+        validate_uuid "$ORDER_ID"
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_order_info  "$WORKSPACE_ID" "$ORDER_ID"
+        ;;
+    "get-order-metadata") # get the information for an order
+        validate_uuid "$ORDER_ID"
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_order_metadata  "$WORKSPACE_ID" "$ORDER_ID"
         ;;
     "estimate-order") # estimate an order cost
         validate_uuid "$WORKSPACE_ID"
@@ -299,7 +334,7 @@ case "$OPERATION" in
         validate_uuid "$ASSET_ID"
         validate_uuid "$WORKSPACE_ID"
         handle_token
-        do_asset_download_url "$REQ_BODY" "$WORKSPACE_ID" "$ASSET_ID"
+        do_asset_download_url "$WORKSPACE_ID" "$ASSET_ID"
         ;;
     *)
         print_usage
