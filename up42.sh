@@ -52,9 +52,8 @@ CURLOPTS='-L -s'
 BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-o <order ID>][-q <query string params> [-w <workspace ID>]]"
+    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-o <order ID>] [-q <query string params>] [-w <workspace ID>]"
 }
-
 
 ## Check the minimum number of arguments.
 if [ $# -lt 2 ]; then
@@ -281,6 +280,29 @@ function do_asset_download_url() {
           -H "Authorization: Bearer $UP42_TOKEN" $download_asset_url
 }
 
+## $1: workspace ID.
+## $2: asset ID.
+function do_download_asset() {
+    ## Get the JSON that includes the download URL from GCP and also
+    ## expiry date for it.
+    local download_data_url=$(do_asset_download_url $1 $2 | $JQ -r '.data.url')
+    local expire_date=$(echo "$download_data_url" \
+                            | awk -F '&' '{split($2, a, "="); print a[2]}')
+    ## Extract the asset filename from the download URL.
+    local asset_fn=$(echo "$download_data_url" \
+                         | awk -F '&' '{split($1, a, "/")
+                            split(a[length(a)], b, "?")
+                            print b[1]}')
+    ## Check is the download URL is still valid.
+    if [ $($DATE +'%s') -gt $expire_date ]; then
+        echo "$SCRIPTNAME: Download link has expired."
+        exit 14
+    fi
+    ## Get the asset.
+    $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
+          -o "output_${ASSET_ID}_${asset_fn}" "$download_data_url"
+}
+
 ## Read the configuration.
 get_configuration
 
@@ -335,6 +357,12 @@ case "$OPERATION" in
         validate_uuid "$WORKSPACE_ID"
         handle_token
         do_asset_download_url "$WORKSPACE_ID" "$ASSET_ID"
+        ;;
+    "download-asset")
+        validate_uuid "$ASSET_ID"
+        validate_uuid "$WORKSPACE_ID"
+        handle_token
+        do_download_asset "$WORKSPACE_ID" "$ASSET_ID"
         ;;
     *)
         print_usage
