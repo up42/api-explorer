@@ -44,7 +44,7 @@ fi
 DATE=$(command -v $DATECMD) || exit 5
 STAT=$(command -v $STATCMD) || exit 13
 
-## Common cURL options.
+## Common cURL options.>
 CURLOPTS='-L -s'
 
 ## If UP42_BASE_URL is defined in the environment then use
@@ -52,7 +52,7 @@ CURLOPTS='-L -s'
 BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-o <order ID>] [-q <query string params>] [-w <workspace ID>]"
+    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-i <image ID>] [-o <order ID>] [-p <provider>] [-q <query string params>] [-w <workspace ID>]"
 }
 
 ## Check the minimum number of arguments.
@@ -89,7 +89,7 @@ if [ ${SETUP_DIR-1} -eq  0 ]; then
 fi
 
 ## Read the options.
-while getopts a:b:c:f:o:q:w: OPT; do
+while getopts a:b:c:f:i:o:p:q:w: OPT; do
     case $OPT in
         a|+a)
             ASSET_ID="$OPTARG"
@@ -103,8 +103,14 @@ while getopts a:b:c:f:o:q:w: OPT; do
         f|f+)
             OPERATION="$OPTARG"
             ;;
+        i|+i)
+            IMAGE_ID="$OPTARG"
+            ;;
         o|+o)
             ORDER_ID="$OPTARG"
+            ;;
+        p|+p)
+            PROVIDER="$OPTARG"
             ;;
         q|+q)
             QUERY_PARAMS="$OPTARG"
@@ -202,6 +208,25 @@ function do_search() {
           -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $search_url
 }
 
+## $1: imagery provider.
+## $2: image ID (provider specific).
+function do_quicklook() {
+    ## The URL for getting the quicklook.
+    local quicklook_url=$(build_url "/catalog/$1/image/$2/quicklook")
+    ## Get the content type to be returned.
+    local content_type=$($CURL $CURLOPTS -I -H "Authorization: Bearer $UP42_TOKEN" \
+                               -H 'Accept: image/webp; q=0.9, image/png; q=0.8, image/jpeg; q=0.7' \
+                               -w "%{content_type}" \
+                               -o /dev/null $quicklook_url | cut -f 2 -d '/' | sed 's/jpeg/jpg/')
+    ## Create the quicklook_filename.
+    local quicklook_fn=quicklook_$1_$2.$content_type
+    ## Get the quicklook filename.
+    echo "$SCRIPTNAME: Getting $quicklook_fn..."
+    $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Accept: image/webp; q=0.9, image/png; q=0.8, image/jpeg; q=0.7' \
+          -o  "$quicklook_fn" $quicklook_url
+}
+
 ## $1: request body (JSON document).
 ## $2: workspace ID.
 function do_order_placement() {
@@ -227,8 +252,7 @@ function do_order_list() {
     ## Get the order list URL.
     local order_list_url=$(build_url "/workspaces/$1/orders/")
     ## Issue the request.
-    $CURL $CURLOPTS -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" $order_list_url
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $order_list_url
 }
 
 ## $1: workspace ID.
@@ -237,8 +261,7 @@ function do_order_info() {
     ## Get the order list URL.
     local order_info_url=$(build_url "/workspaces/$1/orders/$2")
     ## Issue the request.
-    $CURL $CURLOPTS -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" $order_info_url
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $order_info_url
 }
 
 ## $1: workspace ID.
@@ -247,8 +270,7 @@ function do_order_metadata() {
     ## Get the order list URL.
     local order_metadata_url=$(build_url "/workspaces/$1/orders/$2/metadata")
     ## Issue the request.
-    $CURL $CURLOPTS -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" $order_metadata_url
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $order_metadata_url
 }
 
 ## $1: workspace ID.
@@ -256,8 +278,7 @@ function do_asset_list() {
     ## Get the asset list URL.
     local asset_list_url=$(build_url "/workspaces/$1/assets/")
     ## Issue the request.
-    $CURL $CURLOPTS -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" $asset_list_url
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $asset_list_url
 }
 
 ## $1: workspace ID.
@@ -313,6 +334,10 @@ case "$OPERATION" in
     "search")# do a catalog search
         handle_token
         do_search "$REQ_BODY"
+        ;;
+    "get-quicklook")# do a catalog search
+        handle_token
+        do_quicklook "$PROVIDER" "$IMAGE_ID"
         ;;
     "list-orders") # get all orders
         validate_uuid "$WORKSPACE_ID"
