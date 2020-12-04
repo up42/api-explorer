@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# up42.sh --- A simple cURL based API connector for UP42.
-
+# up42.sh --- Script to explore the UP42 API, mostly for support
+# questions.
 
 # Copyright (C) 2020 UP42 GmbH
 
@@ -162,13 +162,13 @@ function build_url() {
     printf '%s%s' $BASE_URL $1
 }
 
-## Obtains the token for a given project.
+## Obtains the token for a given project.g
 function get_token() {
-    local token_url='/oauth/token'
+    local token_url=$(build_url '/oauth/token')
     ## Get the token.
-    UP42_TOKEN=$(CURL $CURLOPTS -X POST -u "$PROJECT_ID:$PROJECT_KEY" \
-                      -H 'Content-Type: application/x-www-form-urlencoded' \
-                      -d 'grant_type=client_credentials' $(build_url $token_url) | $JQ -r '.data.accessToken')
+    UP42_TOKEN=$($CURL $CURLOPTS -u "$PROJECT_ID:$PROJECT_KEY" \
+                       -H 'Content-Type: application/x-www-form-urlencoded' \
+                       -d 'grant_type=client_credentials' $token_url | $JQ -r '.data.accessToken')
     ## If the token is empty something failed while trying to obtain it.
     if [ -z "$UP42_TOKEN" ]; then
         echo "$SCRIPTNAME: Cannot obtain token. Check the given values and try again."
