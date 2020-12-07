@@ -33,7 +33,7 @@ For a complete UP42 SDK please refer to our [Python SDK](https://sdk.up42.com).
 
 ## Requirements
 
- + [Bash](https://en.wikipedia.org/wiki/Bash_(Unix_shell).
+ + [Bash](https://en.wikipedia.org/wiki/Bash_(Unix_shell)).
  + [cURL](https://curl.haxx.se).
  + [jq](https://stedolan.github.io/jq/).
  + [jwt-cli](https://github.com/mike-engel/jwt-cli).
