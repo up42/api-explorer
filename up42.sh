@@ -103,6 +103,9 @@ while getopts a:b:c:f:i:o:p:q:w: OPT; do
         f|f+)
             OPERATION="$OPTARG"
             ;;
+        h|h+)
+            do_display_help "$OPTARG"
+            ;;
         i|+i)
             IMAGE_ID="$OPTARG"
             ;;
@@ -194,6 +197,48 @@ function handle_token() {
     if [ $($DATE +'%s') -gt $dt ]; then
         get_token
     fi
+}
+
+## $1: operation.
+function do_display_help() {
+    case "$1" in
+        "search")
+            echo "Usage: $SCRIPTNAME  -f search -b <request body>"
+            ;;
+        "get-quicklook")
+            echo "Usage: $SCRIPTNAME  -g get-quicklook <data provider> -i <image ID>"
+            ;;
+        "list-orders")
+            echo "Usage: $SCRIPTNAME -f list-orders -w <workspace ID>"
+            ;;
+        "get-order-info")
+            echo "Usage: $SCRIPTNAME -f get-order-info -w <workspace ID>  -o <order ID>"
+            ;;
+        "get-order-metadata")
+            echo "Usage: $SCRIPTNAME -f get-order-metadata -w <workspace ID>  -o <order ID>"
+            ;;
+        "estimate-order")
+            echo "Usage: $SCRIPTNAME -f estimate-order -w <workspace ID>  -b <request body>"
+            ;;
+        "place-order")
+            echo "Usage: $SCRIPTNAME -f place-order -w <workspace ID>  -b <request body>"
+            ;;
+        "list-assets")
+            echo "Usage: $SCRIPTNAME -f list-assets -w <workspace ID>"
+            ;;
+        "get-asset-info")
+            echo "Usage: $SCRIPTNAME -f get-asset-info -a <asset ID> -w <workspace ID>  -b <request body>"
+            ;;
+        "get-asset-download-url")
+            echo "Usage: $SCRIPTNAME -f get-asset-download-url -a <asset ID> -w <workspace ID>"
+            ;;
+        "get-asset-download-url")
+            echo "Usage: $SCRIPTNAME -f download-asset -a <asset ID> -w <workspace ID>"
+            ;;
+        *)
+            print_usage
+            exit 14
+    esac
 }
 
 ## Performs a catalog search given a request body containing the STAC
@@ -331,11 +376,11 @@ TOKEN_FILE="$(pwd)/${PROJECT_ID}_UP42_token.txt"
 
 ## Perform the API operation,
 case "$OPERATION" in
-    "search")# do a catalog search
+    "search") # do a catalog search
         handle_token
         do_search "$REQ_BODY"
         ;;
-    "get-quicklook")# do a catalog search
+    "get-quicklook") # do a catalog search
         handle_token
         do_quicklook "$PROVIDER" "$IMAGE_ID"
         ;;
@@ -377,13 +422,13 @@ case "$OPERATION" in
         handle_token
         do_asset_info "$WORKSPACE_ID" "$ASSET_ID"
         ;;
-    "get-asset-download-url")
+    "get-asset-download-url") # get the asset download URL
         validate_uuid "$ASSET_ID"
         validate_uuid "$WORKSPACE_ID"
         handle_token
         do_asset_download_url "$WORKSPACE_ID" "$ASSET_ID"
         ;;
-    "download-asset")
+    "download-asset") # download an asset
         validate_uuid "$ASSET_ID"
         validate_uuid "$WORKSPACE_ID"
         handle_token
