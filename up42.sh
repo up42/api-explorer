@@ -52,7 +52,7 @@ CURLOPTS='-L -s'
 BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-i <image ID>] [-o <order ID>] [-p <provider>] [-q <query string params>] [-w <workspace ID>]"
+    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-h <operation>] [-i <image ID>] [-o <order ID>] [-p <provider>] [-q <query string params>] [-w <workspace ID>]"
 }
 
 ## Check the minimum number of arguments.
@@ -88,8 +88,61 @@ if [ ${SETUP_DIR-1} -eq  0 ]; then
     exit 0
 fi
 
+## $1: operation.
+function do_display_help() {
+    case "$1" in
+        "search")
+            echo "Usage: $SCRIPTNAME -f search -b <request body>"
+            exit 0
+            ;;
+        "get-quicklook")
+            echo "Usage: $SCRIPTNAME -f get-quicklook <data provider> -i <image ID>"#
+            exit 0
+            ;;
+        "list-orders")
+            echo "Usage: $SCRIPTNAME -f list-orders -w <workspace ID>"
+            exit 0
+            ;;
+        "get-order-info")
+            echo "Usage: $SCRIPTNAME -f get-order-info -w <workspace ID>  -o <order ID>"
+            exit 0
+            ;;
+        "get-order-metadata")
+            echo "Usage: $SCRIPTNAME -f get-order-metadata -w <workspace ID>  -o <order ID>"
+            exit 0
+            ;;
+        "estimate-order")
+            echo "Usage: $SCRIPTNAME -f estimate-order -w <workspace ID>  -b <request body>"
+            exit 0
+            ;;
+        "place-order")
+            echo "Usage: $SCRIPTNAME -f place-order -w <workspace ID>  -b <request body>"
+            exit 0
+            ;;
+        "list-assets")
+            echo "Usage: $SCRIPTNAME -f list-assets -w <workspace ID>"
+            exit 0
+            ;;
+        "get-asset-info")
+            echo "Usage: $SCRIPTNAME -f get-asset-info -a <asset ID> -w <workspace ID>  -b <request body>"
+            exit 0
+            ;;
+        "get-asset-download-url")
+            echo "Usage: $SCRIPTNAME -f get-asset-download-url -a <asset ID> -w <workspace ID>"
+            exit 0
+            ;;
+        "get-asset-download-url")
+            echo "Usage: $SCRIPTNAME -f download-asset -a <asset ID> -w <workspace ID>"
+            exit 0
+            ;;
+        *)
+            print_usage
+            exit 14
+    esac
+}
+
 ## Read the options.
-while getopts a:b:c:f:i:o:p:q:w: OPT; do
+while getopts a:b:c:f:h:i:o:p:q:w: OPT; do
     case $OPT in
         a|+a)
             ASSET_ID="$OPTARG"
@@ -197,48 +250,6 @@ function handle_token() {
     if [ $($DATE +'%s') -gt $dt ]; then
         get_token
     fi
-}
-
-## $1: operation.
-function do_display_help() {
-    case "$1" in
-        "search")
-            echo "Usage: $SCRIPTNAME  -f search -b <request body>"
-            ;;
-        "get-quicklook")
-            echo "Usage: $SCRIPTNAME  -g get-quicklook <data provider> -i <image ID>"
-            ;;
-        "list-orders")
-            echo "Usage: $SCRIPTNAME -f list-orders -w <workspace ID>"
-            ;;
-        "get-order-info")
-            echo "Usage: $SCRIPTNAME -f get-order-info -w <workspace ID>  -o <order ID>"
-            ;;
-        "get-order-metadata")
-            echo "Usage: $SCRIPTNAME -f get-order-metadata -w <workspace ID>  -o <order ID>"
-            ;;
-        "estimate-order")
-            echo "Usage: $SCRIPTNAME -f estimate-order -w <workspace ID>  -b <request body>"
-            ;;
-        "place-order")
-            echo "Usage: $SCRIPTNAME -f place-order -w <workspace ID>  -b <request body>"
-            ;;
-        "list-assets")
-            echo "Usage: $SCRIPTNAME -f list-assets -w <workspace ID>"
-            ;;
-        "get-asset-info")
-            echo "Usage: $SCRIPTNAME -f get-asset-info -a <asset ID> -w <workspace ID>  -b <request body>"
-            ;;
-        "get-asset-download-url")
-            echo "Usage: $SCRIPTNAME -f get-asset-download-url -a <asset ID> -w <workspace ID>"
-            ;;
-        "get-asset-download-url")
-            echo "Usage: $SCRIPTNAME -f download-asset -a <asset ID> -w <workspace ID>"
-            ;;
-        *)
-            print_usage
-            exit 14
-    esac
 }
 
 ## Performs a catalog search given a request body containing the STAC
@@ -369,6 +380,15 @@ function do_download_asset() {
           -o "output_${ASSET_ID}_${asset_fn}" "$download_data_url"
 }
 
+## Lists the available operations-
+function do_list_operations() {
+    echo "$SCRIPTNAME: Available operations."
+    echo -e "search\nget-quicklook\nlist-orders"
+    echo -e "get-order-info\nget-order-metadata\nestimate-order"
+    echo -e "place-order\nlist-assets\nget-asset-info"
+    echo -e "get-asset-download-url\ndownload-asset"
+}
+
 ## Read the configuration.
 get_configuration
 
@@ -376,6 +396,10 @@ TOKEN_FILE="$(pwd)/${PROJECT_ID}_UP42_token.txt"
 
 ## Perform the API operation,
 case "$OPERATION" in
+    "list-operations") # list all the operations
+        do_list_operations
+        exit 0
+        ;;
     "search") # do a catalog search
         handle_token
         do_search "$REQ_BODY"
