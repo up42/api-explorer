@@ -131,7 +131,7 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f get-asset-download-url -a <asset ID> -w <workspace ID>"
             exit 0
             ;;
-        "get-asset-download-url")
+        "download-asset")
             echo "Usage: $SCRIPTNAME -f download-asset -a <asset ID> -w <workspace ID>"
             exit 0
             ;;
@@ -140,7 +140,6 @@ function do_display_help() {
             exit 14
     esac
 }
-
 ## Read the options.
 while getopts a:b:c:f:h:i:o:p:q:w: OPT; do
     case $OPT in
@@ -380,7 +379,7 @@ function do_download_asset() {
           -o "output_${ASSET_ID}_${asset_fn}" "$download_data_url"
 }
 
-## Lists the available operations-
+## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
     echo -e "search\nget-quicklook\nlist-orders"
