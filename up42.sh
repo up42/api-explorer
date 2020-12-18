@@ -96,7 +96,7 @@ function do_display_help() {
             exit 0
             ;;
         "get-quicklook")
-            echo "Usage: $SCRIPTNAME -f get-quicklook <data provider> -i <image ID>"#
+            echo "Usage: $SCRIPTNAME -f get-quicklook -p <data provider> -i <image ID>"#
             exit 0
             ;;
         "list-orders")
