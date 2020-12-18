@@ -363,13 +363,12 @@ function do_download_asset() {
     ## expiry date for it.
     local download_data_url=$(do_asset_download_url $1 $2 | $JQ -r '.data.url')
     local expire_date=$(echo "$download_data_url" \
-                            | awk -F '&' '{split($2, a, "="); print a[2]}')
+                            | awk -F '&' '{split($3, a, "="); print a[2]}')
     ## Extract the asset filename from the download URL.
     local asset_fn=$(echo "$download_data_url" \
                          | awk -F '&' '{split($1, a, "/")
                             split(a[length(a)], b, "?")
                             print b[1]}')
-    echo $download_data_url
     ## Check is the download URL is still valid.
     if [ $($DATE +'%s') -gt $expire_date ]; then
         echo "$SCRIPTNAME: Download link has expired."
