@@ -187,7 +187,7 @@ the **image ID**. This is an unique identifier for a particular image.
 Let us build a CSV of archived images using `jq`:
 
 ```bash
-q -r '.features[].properties as $p | if $p.providerProperties.productionStatus=="ARCHIVED" then $p.providerProperties.sourceIdentifier + ","+ $p.id else empty end' examples/search_results.json > archived_images.csv
+jq -r '.features[].properties as $p | if $p.providerProperties.productionStatus=="ARCHIVED" then $p.providerProperties.sourceIdentifier + ","+ $p.id else empty end' examples/search_results.json > archived_images.csv
 ```
 This CSV has: scene ID, image ID.
 
