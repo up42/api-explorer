@@ -279,6 +279,8 @@ A file named
 downloaded into your directory that you can view with any common image
 viewing program.
 
+![Quicklook for the given image](./examples/quicklook_oneatlas_2e09def0-4625-4d79-8d4d-1a21f6d15d06.jpg)
+
 ## 2.3 Get the quicklook for all images that are archived (cold storage)
 
 ```bash
