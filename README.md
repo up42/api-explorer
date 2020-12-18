@@ -59,6 +59,12 @@ examples directory.
 
 Please see the `tutorial.md` file for examples of script usage.
 
+
+## TODO
+
+ 1. Add workflows, jobs and blocks API.
+ 2. Add price estimation API.
+
 ## Support
 
 Please let us know at [support@up42.com](mailto:support@up42.com) if
