@@ -55,6 +55,10 @@ built-in helper functionality that can be invoked with:
 There are examples of request bodies for the POST/PUT requests in the
 examples directory.
 
+## Documentation
+
+Please see the `tutorial.md` file for examples of script usage.
+
 ## Support
 
 Please let us know at [support@up42.com](mailto:support@up42.com) if
