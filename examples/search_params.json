@@ -1,0 +1,48 @@
+{
+  "intersects": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          13.42855453491211,
+          52.51261676798259
+        ],
+        [
+          13.436279296875,
+          52.51262982683484
+        ],
+        [
+          13.436279296875,
+          52.51525457735388
+        ],
+        [
+          13.42855453491211,
+          52.51525457735388
+        ],
+        [
+          13.42855453491211,
+          52.51261676798259
+        ]
+      ]
+    ]
+  },
+  "limit": 100,
+  "query": {
+    "cloudCoverage": {
+      "lte": 20
+    },
+    "processingLevel": {
+      "IN": [
+        "ALBUM",
+        "SENSOR"
+      ]
+    },
+    "dataBlock": {
+      "in": [
+        "oneatlas-pleiades-fullscene",
+        "oneatlas-pleiades-aoiclipped"
+      ]
+    }
+  },
+  "datetime": "2016-01-01T00:00:00.000Z/.."
+}
