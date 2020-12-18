@@ -331,7 +331,7 @@ function do_order_metadata() {
 ## $1: workspace ID.
 function do_asset_list() {
     ## Get the asset list URL.
-    local asset_list_url=$(build_url "/workspaces/$1/assets/")
+    local asset_list_url=$(build_url "/workspaces/$1/assets/?direction=DESC")
     ## Issue the request.
     $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $asset_list_url
 }
@@ -369,6 +369,7 @@ function do_download_asset() {
                          | awk -F '&' '{split($1, a, "/")
                             split(a[length(a)], b, "?")
                             print b[1]}')
+    echo $download_data_url
     ## Check is the download URL is still valid.
     if [ $($DATE +'%s') -gt $expire_date ]; then
         echo "$SCRIPTNAME: Download link has expired."

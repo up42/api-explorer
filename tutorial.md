@@ -261,6 +261,7 @@ We can save this ID in a shell variable for convenience:
 ```bash
 IMAGE1_ID=$(awk -F ',' 'NR == 1 {print $2}' examples/archived_images.csv)
 echo $IMAGE1_ID
+
 > 2e09def0-4625-4d79-8d4d-1a21f6d15d06
 ```
 
@@ -286,3 +287,200 @@ for i in $(awk -F ',' ' {s = sprintf("%s %s", s, $2)} END {print s}' archived_im
 
 Now you should have a **all** the quicklooks for the archived images
 in your directory.
+
+## 3. Ordering
+
+**N.B**: Ordering has costs. Please make sure you are aware of that
+and we recommended you **always** get an estimate of the order cost
+**ahead** of placing the order.
+
+For getting an order cost estimate and placing the order we need the
+image ID we used above to get the quicklook. Remember that this is the
+most recent image that is available in the archive that we are
+interested in.
+
+## 3.1 Get an order cost estimate
+
+Re-using the shell variable we created above we are going to get a
+cost estimate for ordering this image, i.e., how much it will cost us
+to get the image to be warmed up (retrieved from cold storage) and
+made available for download.
+
+To work with orders we need the Workspace ID of our workspace. You can
+grab the Workspace ID from the URL in the console. Copy the URL from
+your browser and do:
+
+```bash
+WID=$(pbpaste | cut -f 2 -d '=' | sed 's/#.*$//')
+
+echo $WID
+
+> d39fe05a-400c-44f6-b770-86990f64b004
+```
+
+Now we need the order parameters.
+
+```js
+{
+  "dataProviderName": "oneatlas",
+  "orderParams": {
+    "id": "2e09def0-4625-4d79-8d4d-1a21f6d15d06",
+    "aoi": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            13.42855453491211,
+            52.51261676798259
+          ],
+          [
+            13.436279296875,
+            52.51262982683484
+          ],
+          [
+            13.436279296875,
+            52.51525457735388
+          ],
+          [
+            13.42855453491211,
+            52.51525457735388
+          ],
+          [
+            13.42855453491211,
+            52.51261676798259
+          ]
+        ]
+      ]
+    }
+  }
+}
+
+```
+
+```bash
+up42 -f estimate-order -w $WID -b order_params.json | jq '.'
+```
+
+This command outputs:
+
+```js
+{
+  "data": {
+    "credits": 158
+  },
+  "error": null
+}
+```
+
+This image will cost **158** credits.
+
+## 3.2 Place the order
+
+Now that we have a cost estimate we are ready to place the order:
+
+```bash
+up42 -f place-order -w $WID -b examples/order_params.json | jq '.' > place_order_response.json
+```
+
+The output is:
+
+```js
+{
+  "data": {
+    "id": "0567c401-96e3-4afb-875b-92a95b2d748d"
+  },
+  "error": null
+}
+```
+
+This has the order ID. Using the order ID we can inquire the order
+status and download the image when the order is **FULFILLED**.
+
+## 3.3 Get the order status (info)
+
+Orders can be in one of two status:
+
+ + `PLACED`: ongoing
+
+ + `FULFILLED`: finished
+
+First we need to extract the order ID from the file we saved when
+getting the response from placing the order.
+
+```bash
+ORDER_ID=$(jq -r '.data.id' examples/place_order_response.json)
+echo $ORDER_ID
+
+> 0567c401-96e3-4afb-875b-92a95b2d748d
+```
+
+Get the order status:
+
+```bash
+up42 -f get-order-info -w $WID -o $ORDER_ID | jq '.'
+```
+
+that produces:
+
+```js
+{
+  "data": {
+    "id": "0567c401-96e3-4afb-875b-92a95b2d748d",
+    "userId": null,
+    "workspaceId": "d39fe05a-400c-44f6-b770-86990f64b004",
+    "dataProvider": "OneAtlas",
+    "status": "FULFILLED",
+    "createdAt": "2020-12-18T13:54:53.988053Z",
+    "updatedAt": "2020-12-18T13:57:57.208934Z",
+    "assets": [
+      "e4bea6fc-bb54-4341-b4a5-1c528df0454a"
+    ]
+  },
+  "error": null
+}
+```
+
+The order has been `FULLFILLED` we can now proceed to download it.
+
+## 3.4 Download the order asset from User Storage
+
+Orders get saved to your storage area in UP42 as assets.
+
+Let us list all the assets and select the latest element from the
+list.
+
+```bash
+up42 -f list-assets -w $WID | jq '.data.content[0]' > order_asset_info.json
+```
+
+Giving the file with the content:
+
+```js
+{
+  "id": "e4bea6fc-bb54-4341-b4a5-1c528df0454a",
+  "workspaceId": "d39fe05a-400c-44f6-b770-86990f64b004",
+  "createdAt": "2020-12-18T13:57:56.899411Z",
+  "type": "ARCHIVED",
+  "source": "ORDER",
+  "name": "0567c401-96e3-4afb-875b-92a95b2d748d.zip",
+  "size": 1630629
+}
+```
+
+To download the order from User Storage we need the asset ID.
+
+```bash
+ASSET_ID=$(jq -r '.id'  examples/order_asset_info.json)
+echo $ASSET_ID
+
+> e4bea6fc-bb54-4341-b4a5-1c528df0454a
+```
+Now finally to download the asset corresponding to the above order:
+
+```bash
+up42 -f download-asset -a $ASSET_ID -w $WID
+
+ % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 1592k  100 1592k    0     0   735k      0  0:00:02  0:00:02 --:--:--  735k
+```
