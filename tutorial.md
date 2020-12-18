@@ -176,13 +176,13 @@ jq -r '.features[].properties.providerProperties as $p | if $p.productionStatus=
 jq -r '.features[].properties as $p | if $p.providerProperties.productionStatus=="IN_CLOUD" then $p.id else empty end'
 ```
 
-## Get the quicklooks for a given image
+## 2. Get the quicklooks for a given image
 
 After obtaining the search results you can now get a low resolution
 preview of an image listed in the search results. For that you need
 the **image ID**. This is an unique identifier for a particular image.
 
-### Build a CSV file of archived images
+### 2.1 Build a CSV file of archived images
 
 Let us build a CSV of archived images using `jq`:
 
@@ -247,6 +247,8 @@ DS_PHR1B_201601221016491_FR1_PX_E013N52_0414_00974,d7b782f0-67ca-40ba-88f7-fcbf2
 DS_PHR1B_201601221016051_FR1_PX_E013N52_0414_01032,413579de-82d4-4d18-ad55-be91942b51b0
 ```
 
+### 2.2 Get a specific quicklook
+
 Let us get the quicklook for the first image of the list.
 
 ```bash
@@ -275,3 +277,12 @@ A file named
 `quicklook_oneatlas_2e09def0-4625-4d79-8d4d-1a21f6d15d06.jpg` is now
 downloaded into your directory that you can view with any common image
 viewing program.
+
+## 2.3 Get the quicklook for all images that are archived (cold storage)
+
+```bash
+for i in $(awk -F ',' ' {s = sprintf("%s %s", s, $2)} END {print s}' archived_images.csv); do up42 -f get-quicklook -p oneatlas -i $i; done
+```
+
+Now you should have a **all** the quicklooks for the archived images
+in your directory.
