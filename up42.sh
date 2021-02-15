@@ -44,7 +44,7 @@ fi
 DATE=$(command -v $DATECMD) || exit 5
 STAT=$(command -v $STATCMD) || exit 13
 
-## Common cURL options.>
+## Common cURL options.
 CURLOPTS='-L -s'
 
 ## If UP42_BASE_URL is defined in the environment then use
@@ -52,7 +52,7 @@ CURLOPTS='-L -s'
 BASE_URL=${UP42_BASE_URL:-https://api.up42.com}
 
 function print_usage() {
-    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-h <operation>] [-i <image ID>] [-o <order ID>] [-p <provider>] [-q <query string params>] [-w <workspace ID>]"
+    echo "Usage: $SCRIPTNAME -f <operation> [-a <asset ID>] [-b <request body>] [-c <config file>] [-h <operation>] [-g <workflow ID>] [-i <image ID>] [-j <job ID>] [-o <order ID>] [-p <provider>] [-q <query string params>] [-w <workspace ID>]"
 }
 
 ## Check the minimum number of arguments.
@@ -96,7 +96,31 @@ function do_display_help() {
             exit 0
             ;;
         "get-quicklook")
-            echo "Usage: $SCRIPTNAME -f get-quicklook -p <data provider> -i <image ID>"#
+            echo "Usage: $SCRIPTNAME -f get-quicklook -p <data provider> -i <image ID>"
+            exit 0
+            ;;
+        "launch-job")
+            echo "Usage: $SCRIPTNAME -f launch-job -g <workflow ID> -b <request body>"
+            exit 0
+            ;;
+        "get-job-status")
+            echo "Usage: $SCRIPTNAME -f get-job-status -j <job ID>"
+            exit 0
+            ;;
+        "get-job-info")
+            echo "Usage: $SCRIPTNAME -f get-job-info -j <job ID> [-n <job name>]"
+            exit 0
+            ;;
+        "cancel-job")
+            echo "Usage: $SCRIPTNAME -f cancel-job -j <job ID>"
+            exit 0
+            ;;
+        "rerun-job")
+            echo "Usage: $SCRIPTNAME -f rerun-job -g <workflow ID> -j <job ID>"
+            exit 0
+            ;;
+        "rename-job")
+            echo "Usage: $SCRIPTNAME -f rename-job -g <workflow ID> -j <job ID> -n <job name>"
             exit 0
             ;;
         "list-orders")
@@ -140,8 +164,9 @@ function do_display_help() {
             exit 14
     esac
 }
+
 ## Read the options.
-while getopts a:b:c:f:h:i:o:p:q:w: OPT; do
+while getopts a:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
     case $OPT in
         a|+a)
             ASSET_ID="$OPTARG"
@@ -155,11 +180,20 @@ while getopts a:b:c:f:h:i:o:p:q:w: OPT; do
         f|f+)
             OPERATION="$OPTARG"
             ;;
+        g|+g)
+            WORKFLOW_ID="$OPTARG"
+            ;;
         h|h+)
             do_display_help "$OPTARG"
             ;;
         i|+i)
             IMAGE_ID="$OPTARG"
+            ;;
+        j|+j)
+            JOB_ID="$OPTARG"
+            ;;
+        n|+n)
+            JOB_NAME="$OPTARG"
             ;;
         o|+o)
             ORDER_ID="$OPTARG"
@@ -189,6 +223,32 @@ function validate_uuid() {
     return $?
 }
 
+## Encodes a string in a URL.
+## Taken from: https://stackoverflow.com/questions/296536/how-to-urlencode-data-for-curl-command.
+## $1: string to be encoded in the URL.
+function encode_url() {
+    local string="${1}"
+    local strlen=${#string}
+    local encoded=""
+    local pos c o
+
+    ## Loop on the string to encode.
+    for (( pos=0 ; pos<strlen ; pos++ )); do
+        c=${string:$pos:1}
+        case "$c" in
+            [-_.~a-zA-Z0-9]) # URL safe characters
+                o="${c}"
+                ;;
+            *) # non URL safe characters: needs to be escaped
+                printf -v o '%%%02x' "'$c"
+                ;;
+        esac
+        encoded+="${o}"
+    done
+    echo "${encoded}"
+}
+
+## Reads the configuration.
 function get_configuration() {
     if  [ ! -r $CONFIG_FILE ]; then
         echo "$SCRIPTNAME: Cannot read configuration file $CONFIG_FILE."
@@ -204,9 +264,9 @@ function get_configuration() {
         exit 9
     fi
 
-    ## Validate the project
+    ## Validate the project.
     if  ! validate_uuid $PROJECT_ID; then
-        printf '%s: given project ID %s is invalid\n' $SCRIPTNAME $PROJECT_ID
+        printf '%s: given project ID %s is invalid.\n' $SCRIPTNAME $PROJECT_ID
         exit 10
     fi
 }
@@ -217,7 +277,7 @@ function build_url() {
     printf '%s%s' $BASE_URL $1
 }
 
-## Obtains the token for a given project.g
+## Obtains the token for a given project.
 function get_token() {
     local token_url=$(build_url '/oauth/token')
     ## Get the token.
@@ -233,7 +293,7 @@ function get_token() {
     fi
 }
 
-## Handles the token depending its is set or has expired based
+## Handles the token depending if is set or has expired based
 ## on the value of the exp field in the token payload.
 function handle_token() {
     local dt
@@ -280,6 +340,94 @@ function do_quicklook() {
     $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
           -H 'Accept: image/webp; q=0.9, image/png; q=0.8, image/jpeg; q=0.7' \
           -o  "$quicklook_fn" $quicklook_url
+}
+
+## Validates the job parameters passed in the request body.
+## $1: project ID.
+## $2: workflow ID.
+## $3: request body (JSON document).
+function do_validate_job_params() {
+    local validate_job_url=$(build_url "/projects/$1/workflows/$2/jobs/validate")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$3 $validate_job_url
+}
+
+## Names a job according to a given string.
+## $1: name string.
+function name_job() {
+    echo $(encode_url "$SCRIPTNAME: $1@$($DATE +'%Y.%m.%d:%H:%M:%S')")
+}
+
+## Launches a job given project and workflow ID.
+## $1: project ID.
+## $2: workflow ID.
+## $3: request body (JSON document).
+## $4: job name (optional).
+function do_launch_job() {
+    local create_job_url=$(build_url "/projects/$1/workflows/$2/jobs")
+    ## Create random job name.
+    local job_name=$(name_job "$RANDOM")
+    ## Check if the job name is given. Is so name it accordingly.
+    [ $# -eq 4 ] && job_name=$(name_job "$4")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$3 "$create_job_url?name=$job_name"
+}
+
+## Gets the metadata of a given job in a given project.
+## $1: project ID.
+## $2: job ID.
+function do_job_info() {
+    local job_status_url=$(build_url "/projects/$1/jobs/$2")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $job_status_url
+}
+
+## Gets the job status of a given job in a given project.
+## $1: project ID.
+## $2: job ID.
+function do_job_status() {
+    echo $(do_job_info "$1" "$2" | $JQ -r '.data.status')
+}
+
+## Cancels a given job.
+## $1: project ID.
+## $2: job ID.
+function do_job_cancel() {
+    local job_cancel_url=$(build_url "/projects/$1/jobs/$2/cancel")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H "Authorization: Bearer $UP42_TOKEN" \
+          $job_cancel_url
+}
+
+## Reruns a given job.
+## $1: project ID.
+## $2: workflow ID.
+## $3: job ID.
+## $4: job name (optional).
+function do_job_rerun() {
+    local job_rerun_url=$(build_url "/projects/$1/workflows/$2/jobs/$3")
+    local job_name=$(name_job "$RANDOM")
+    ## Check if the job name is given. Is so name it accordingly.
+    [ $# -eq 4 ] && job_name=$(name_job "$4")
+    ## Issue the request.
+    $CURL $CURLOPTS -X POST -H "Authorization: Bearer $UP42_TOKEN" \
+          $job_rerun_url?name="$job_name"
+}
+
+## Renames a given job.
+## $1: project ID.
+## $2: workflow ID.
+## $3: job ID.
+## $4: job name.
+function do_job_rename() {
+    local job_rename_url=$(build_url "/projects/$1/workflows/$2/jobs/$3")
+    local data=$(printf '{"name": "%s"}' "$4")
+    ## Issue the request.
+    $CURL $CURLOPTS -v -X PUT -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" \
+          -d "$data" $job_rename_url
 }
 
 ## $1: request body (JSON document).
@@ -382,6 +530,7 @@ function do_download_asset() {
 ## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
+    echo -e "launch-job\get-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
     echo -e "place-order\nlist-assets\nget-asset-info"
@@ -406,6 +555,37 @@ case "$OPERATION" in
     "get-quicklook") # do a catalog search
         handle_token
         do_quicklook "$PROVIDER" "$IMAGE_ID"
+        ;;
+    "launch-job") # launch a job
+        validate_uuid "$WORKFLOW_ID"
+        handle_token
+        do_validate_job_params "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY"
+        do_launch_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$JOB_NAME"
+        ;;
+    "get-job-status") # get a job status
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_status "$PROJECT_ID" "$JOB_ID"
+        ;;
+    "get-job-info") # get a job metadata
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_info "$PROJECT_ID" "$JOB_ID"
+        ;;
+    "cancel-job") # cancels a job
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_cancel "$PROJECT_ID" "$JOB_ID" "JOB_NAME"
+        ;;
+    "rerun-job") # reruns a job
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_rerun "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$JOB_NAME"
+        ;;
+    "rename-job") # reruns a job
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_rename "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$JOB_NAME"
         ;;
     "list-orders") # get all orders
         validate_uuid "$WORKSPACE_ID"
