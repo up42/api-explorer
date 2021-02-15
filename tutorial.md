@@ -51,7 +51,7 @@ pass the configuration file as an argument to the script with the
 option `-c`. E.g.,
 
 ```bash
-up42.sh -f searcg -b search_params.json -c my_project.conf
+up42.sh -f search -b search_params.json -c my_project.conf
 ```
 
 Here we are passing a configuration file `my_project.conf`.
@@ -157,11 +157,12 @@ up42 -f search -b search_params.json | jq '.' > search_results.json
 
 You can use `jq` to inspect the results.
 
- 1. Get all scene IDs of `ARCHIVED` (cold storage images).
+ 1. Get all scene IDs of `ARCHIVED` (cold storage) images.
 ```bash
 jq -r '.features[].properties.providerProperties as $p | if $p.productionStatus=="ARCHIVED" then $p.sourceIdentifier else empty end' search_results.json
 ```
- 2. Get all images IDs that are `ARCHIVED` (col storage images): these IDs are used
+ 2. Get all images IDs that are `ARCHIVED` (cold storage): these IDs
+    will be then  used
     for ordering and getting the quicklooks.
 ```bash
 jq -r '.features[].properties as $p | if $p.providerProperties.productionStatus=="ARCHIVED" then $p.id else empty end'
@@ -287,7 +288,7 @@ viewing program.
 for i in $(awk -F ',' ' {s = sprintf("%s %s", s, $2)} END {print s}' archived_images.csv); do up42 -f get-quicklook -p oneatlas -i $i; done
 ```
 
-Now you should have a **all** the quicklooks for the archived images
+Now you should have **all** the quicklooks for the archived images
 in your directory.
 
 ## 3. Ordering

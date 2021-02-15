@@ -2,8 +2,8 @@
 
 ##  Introduction
 
-The API explorer is a Bash script used by devrel/customer support team
-at UP42 for two things mainly:
+The API explorer is a Bash script used by the devrel/customer support
+team at UP42 for two things mainly:
 
  1. Streamline customer support requests.
  2. Be the main tool to help us document the raw API (reference,
@@ -12,7 +12,7 @@ at UP42 for two things mainly:
 ## Disclaimer
 
 As stated above this is mostly an _internal_ tool. We made it public
-in the hopes if helping customers that:
+in the hope of helping customers that:
 
  1. Want to explore the raw API because, for example, they are working
     on a product integration that is not written in Python and
@@ -23,7 +23,7 @@ in the hopes if helping customers that:
 
  However IT IS NOT a free software tool that is officially supported
  by UP42 for system integrations or UP42 API usage. This means that we
- welcome pull requests, but don't expect us to solve issues or features
+ welcome pull requests, but don't expect us to solve issues or feature
  development that do not fall into one of the main goals described
  above.
 
@@ -62,7 +62,7 @@ Please see the `tutorial.md` file for examples of script usage.
 
 ## TODO
 
- 1. Add workflows, jobs and blocks API.
+ 1. Add workflows and blocks API.
  2. Add price estimation API.
 
 ## Support
