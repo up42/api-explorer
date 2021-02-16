@@ -100,7 +100,7 @@ function do_display_help() {
             exit 0
             ;;
         "launch-job")
-            echo "Usage: $SCRIPTNAME -f launch-job -g <workflow ID> -b <request body>"
+            echo "Usage: $SCRIPTNAME -f launch-job -g <workflow ID> -b <request body> [-n <job name>]"
             exit 0
             ;;
         "get-job-status")
@@ -108,7 +108,7 @@ function do_display_help() {
             exit 0
             ;;
         "get-job-info")
-            echo "Usage: $SCRIPTNAME -f get-job-info -j <job ID> [-n <job name>]"
+            echo "Usage: $SCRIPTNAME -f get-job-info -j <job ID>"
             exit 0
             ;;
         "cancel-job")
@@ -530,7 +530,7 @@ function do_download_asset() {
 ## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
-    echo -e "launch-job\get-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job"
+    echo -e "launch-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
     echo -e "place-order\nlist-assets\nget-asset-info"
