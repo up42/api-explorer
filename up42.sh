@@ -123,6 +123,22 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f rename-job -g <workflow ID> -j <job ID> -n <job name>"
             exit 0
             ;;
+        "get-job-tasks")
+            echo "Usage: $SCRIPTNAME -f get-job-tasks -j <job ID>"
+            exit 0
+            ;;
+        "get-job-results-json")
+            echo "Usage: $SCRIPTNAME -f get-job-results-json -j <job ID>"
+            exit 0
+            ;;
+        "get-job-results-download-url")
+            echo "Usage: $SCRIPTNAME -f get-job-results-download-url -j <job ID>"
+            exit 0
+            ;;
+        "get-job-results")
+            echo "Usage: $SCRIPTNAME -f get-job-results -j <job ID> [-n <name>]"
+            exit 0
+            ;;
         "list-orders")
             echo "Usage: $SCRIPTNAME -f list-orders -w <workspace ID>"
             exit 0
@@ -193,7 +209,7 @@ while getopts a:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
             JOB_ID="$OPTARG"
             ;;
         n|+n)
-            JOB_NAME="$OPTARG"
+            NAME="$OPTARG"
             ;;
         o|+o)
             ORDER_ID="$OPTARG"
@@ -379,9 +395,10 @@ function do_launch_job() {
 ## $1: project ID.
 ## $2: job ID.
 function do_job_info() {
-    local job_status_url=$(build_url "/projects/$1/jobs/$2")
+    local job_info_url=$(build_url "/projects/$1/jobs/$2")
     ## Issue the request.
-    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $job_status_url
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_info_url
 }
 
 ## Gets the job status of a given job in a given project.
@@ -438,6 +455,55 @@ function do_order_placement() {
     # Issue the request.
     $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
           -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $place_order_url
+}
+
+## Gets a given job tasks.
+## $1: project ID.
+## $2: job ID.
+function do_job_tasks() {
+    ## Get the job tasks URL.
+    local job_tasks_url=$(build_url "/projects/$1/jobs/$2/tasks")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_tasks_url
+}
+
+## Gets a the GeoJSON output of a job (metadata).
+## $1: project ID.
+## $2: job ID.
+function do_job_results_json() {
+    ## Get the job GeoJSON output URL.
+    local job_results_json_url=$(build_url "/projects/$1/jobs/$2/outputs/data-json")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_results_json_url
+}
+
+## Gets the JSON with a signed URL to download the jkob results.
+## $1: project ID.
+## $2: job ID.
+function do_job_results_download_url() {
+    ## Get the job GeoJSON output URL.
+    local job_results_download_url=$(build_url "/projects/$1/jobs/$2/downloads/results")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_results_download_url
+}
+
+# Gets the job results as a tarball.
+## $1: project ID.
+## $2: job ID.
+## $3: output archive name (optional)
+function do_job_results() {
+    ## Get the results signed download URL.
+    local job_results_url=$(do_job_results_download_url $1 $2 | $JQ -r '.data.url')
+    ## Default output archive name.
+    local out_fn=$(printf 'output_%s_%s.tar.gz' "$1" "$2")
+    ## Check if the job name is given. Is so name it accordingly.
+    [ -n "$3" ] && out_fn=$(printf 'output_%s.tar.gz' "$3")
+    ## Issue the request.
+    $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
+          -o $out_fn "$job_results_url"
 }
 
 ## $1: request body (JSON document).
@@ -530,7 +596,8 @@ function do_download_asset() {
 ## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
-    echo -e "launch-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job"
+    echo -e "launch-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
+    echo -e "get-job-results-json\nget-job-results-download-url\nget-job-results"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
     echo -e "place-order\nlist-assets\nget-asset-info"
@@ -560,7 +627,7 @@ case "$OPERATION" in
         validate_uuid "$WORKFLOW_ID"
         handle_token
         do_validate_job_params "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY"
-        do_launch_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$JOB_NAME"
+        do_launch_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$NAME"
         ;;
     "get-job-status") # get a job status
         validate_uuid "$JOB_ID"
@@ -575,17 +642,37 @@ case "$OPERATION" in
     "cancel-job") # cancels a job
         validate_uuid "$JOB_ID"
         handle_token
-        do_job_cancel "$PROJECT_ID" "$JOB_ID" "JOB_NAME"
+        do_job_cancel "$PROJECT_ID" "$JOB_ID" "NAME"
         ;;
     "rerun-job") # reruns a job
         validate_uuid "$JOB_ID"
         handle_token
-        do_job_rerun "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$JOB_NAME"
+        do_job_rerun "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$NAME"
         ;;
     "rename-job") # reruns a job
         validate_uuid "$JOB_ID"
         handle_token
-        do_job_rename "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$JOB_NAME"
+        do_job_rename "$PROJECT_ID" "$WORKFLOW_ID" "$JOB_ID" "$NAME"
+        ;;
+    "get-job-tasks")# get a job tasks
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_tasks "$PROJECT_ID" "$JOB_ID"
+        ;;
+    "get-job-results-json")# get a job GeoJSON output
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_results_json "$PROJECT_ID" "$JOB_ID"
+        ;;
+    "get-job-results-download-url")# get a job output download URL
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_results_download_url "$PROJECT_ID" "$JOB_ID"
+        ;;
+    "get-job-results")# get a job output
+        validate_uuid "$JOB_ID"
+        handle_token
+        do_job_results "$PROJECT_ID" "$JOB_ID" "$NAME"
         ;;
     "list-orders") # get all orders
         validate_uuid "$WORKSPACE_ID"

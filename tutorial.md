@@ -270,11 +270,11 @@ Now let us get the quicklook for this image:
 
 ```bash
 up42 -f get-quicklook -p oneatlas -i $IMAGE1_ID
-```
+```s
 
 where the `-p` argument is the name of the upstream data provider, in this
 case OneAtlas, given as lowercased `oneatlas`.
-
+≈‚
 A file named
 `quicklook_oneatlas_2e09def0-4625-4d79-8d4d-1a21f6d15d06.jpg` is now
 downloaded into your directory that you can view with any common image
