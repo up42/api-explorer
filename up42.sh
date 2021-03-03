@@ -442,19 +442,9 @@ function do_job_rename() {
     local job_rename_url=$(build_url "/projects/$1/workflows/$2/jobs/$3")
     local data=$(printf '{"name": "%s"}' "$4")
     ## Issue the request.
-    $CURL $CURLOPTS -v -X PUT -H 'Content-Type: application/json' \
+    $CURL $CURLOPTS -X PUT -H 'Content-Type: application/json' \
           -H "Authorization: Bearer $UP42_TOKEN" \
           -d "$data" $job_rename_url
-}
-
-## $1: request body (JSON document).
-## $2: workspace ID.
-function do_order_placement() {
-    ## Get the order placement URL.
-    local place_order_url=$(build_url "/workspaces/$2/orders")
-    # Issue the request.
-    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $place_order_url
 }
 
 ## Gets a given job tasks.
@@ -479,7 +469,7 @@ function do_job_results_json() {
           -H 'Content-Type: application/json' $job_results_json_url
 }
 
-## Gets the JSON with a signed URL to download the jkob results.
+## Gets the JSON with a signed URL to download the job results.
 ## $1: project ID.
 ## $2: job ID.
 function do_job_results_download_url() {
@@ -514,6 +504,16 @@ function do_order_estimation() {
     ## Issue the request.
     $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
           -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $estimate_order_url
+}
+
+## $1: request body (JSON document).
+## $2: workspace ID.
+function do_order_placement() {
+    ## Get the order placement URL.
+    local place_order_url=$(build_url "/workspaces/$2/orders")
+    # Issue the request.
+    $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $UP42_TOKEN" -d @$1 $place_order_url
 }
 
 ## $1: workspace ID.
