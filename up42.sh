@@ -99,8 +99,8 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f get-quicklook -p <data provider> -i <image ID>"
             exit 0
             ;;
-        "launch-job")
-            echo "Usage: $SCRIPTNAME -f launch-job -g <workflow ID> -b <request body> [-n <job name>]"
+        "run-job")
+            echo "Usage: $SCRIPTNAME -f run-job -g <workflow ID> -b <request body> [-n <job name>]"
             exit 0
             ;;
         "get-job-status")
@@ -180,10 +180,12 @@ function do_display_help() {
             exit 14
     esac
 }
-
 ## Read the options.
-while getopts a:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
+while getopts Da:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
     case $OPT in
+        D|+D)
+            DEBUG=1
+            ;;
         a|+a)
             ASSET_ID="$OPTARG"
             ;;
@@ -375,12 +377,12 @@ function name_job() {
     echo $(encode_url "$SCRIPTNAME: $1@$($DATE +'%Y.%m.%d:%H:%M:%S')")
 }
 
-## Launches a job given project and workflow ID.
+## Runes a job given project and workflow ID.
 ## $1: project ID.
 ## $2: workflow ID.
 ## $3: request body (JSON document).
 ## $4: job name (optional).
-function do_launch_job() {
+function do_run_job() {
     local create_job_url=$(build_url "/projects/$1/workflows/$2/jobs")
     ## Create random job name.
     local job_name=$(name_job "$RANDOM")
@@ -596,7 +598,7 @@ function do_download_asset() {
 ## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
-    echo -e "launch-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
+    echo -e "run-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
     echo -e "get-job-results-json\nget-job-results-download-url\nget-job-results"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
@@ -608,6 +610,8 @@ function do_list_operations() {
 get_configuration
 
 TOKEN_FILE="$(pwd)/${PROJECT_ID}_UP42_token.txt"
+
+[ -n "$DEBUG" ] && set -x
 
 ## Perform the API operation,
 case "$OPERATION" in
@@ -623,11 +627,11 @@ case "$OPERATION" in
         handle_token
         do_quicklook "$PROVIDER" "$IMAGE_ID"
         ;;
-    "launch-job") # launch a job
+    "run-job") # run a job
         validate_uuid "$WORKFLOW_ID"
         handle_token
         do_validate_job_params "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY"
-        do_launch_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$NAME"
+        do_run_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$NAME"
         ;;
     "get-job-status") # get a job status
         validate_uuid "$JOB_ID"
@@ -728,3 +732,5 @@ case "$OPERATION" in
         print_usage
         exit 12
 esac
+
+[ -n "$DEBUG" ] && set +x
