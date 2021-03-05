@@ -25,6 +25,7 @@ SCRIPTNAME=${0##*/}
 ## Token variable.
 UP42_TOKEN=''
 
+
 ## Necessary programs.
 CURL=$(command -v curl) || exit 1
 JWT=$(command -v jwt) || exit 2
@@ -611,6 +612,7 @@ get_configuration
 
 TOKEN_FILE="$(pwd)/${PROJECT_ID}_UP42_token.txt"
 
+## Trace the Bash execution from here id DEBUG is set.
 [ -n "$DEBUG" ] && set -x
 
 ## Perform the API operation,
@@ -733,4 +735,5 @@ case "$OPERATION" in
         exit 12
 esac
 
+## Untrace Bash execution if DEBUG is set.
 [ -n "$DEBUG" ] && set +x
