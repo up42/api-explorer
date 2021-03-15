@@ -37,9 +37,11 @@ UUID=$(command -v uuid) || exit 4
 if [ "$(uname -s)" = "Darwin" ]; then
     DATECMD=gdate
     STATCMD=gstat
+    MKTEMPCMD=gmktemp
 else
     DATECMD=date
     STATCMD=stat
+    MKTEMPCMD=mktemp
 fi
 
 DATE=$(command -v $DATECMD) || exit 5
@@ -104,6 +106,10 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f run-job -g <workflow ID> -b <request body> [-n <job name>]"
             exit 0
             ;;
+        "run-test-query")
+            echo "Usage: $SCRIPTNAME -f run-test-query -g <workflow ID> -b <request body> [-n <job name>]"
+            exit 0
+            ;;
         "get-job-status")
             echo "Usage: $SCRIPTNAME -f get-job-status -j <job ID>"
             exit 0
@@ -165,7 +171,7 @@ function do_display_help() {
             exit 0
             ;;
         "get-asset-info")
-            echo "Usage: $SCRIPTNAME -f get-asset-info -a <asset ID> -w <workspace ID>  -b <request body>"
+            echo "Usage: $SCRIPTNAME -f get-asset-info -a <asset ID> -w <workspace ID>"
             exit 0
             ;;
         "get-asset-download-url")
@@ -378,7 +384,7 @@ function name_job() {
     echo $(encode_url "$SCRIPTNAME: $1@$($DATE +'%Y.%m.%d:%H:%M:%S')")
 }
 
-## Runes a job given project and workflow ID.
+## Runs a job given project and workflow ID.
 ## $1: project ID.
 ## $2: workflow ID.
 ## $3: request body (JSON document).
@@ -392,6 +398,20 @@ function do_run_job() {
     ## Issue the request.
     $CURL $CURLOPTS -X POST -H 'Content-Type: application/json' \
           -H "Authorization: Bearer $UP42_TOKEN" -d @$3 "$create_job_url?name=$job_name"
+}
+
+## Runs a test query job given project and workflow ID.
+## $1: project ID.
+## $2: workflow ID.
+## $3: request body (JSON document).
+## $4: job name (optional).
+function do_test_query() {
+    ## We need to inject the "config": { "mode": "DRY_RUN" } field and value in
+    ## the request body.
+    local req_body_fn=$($MKTEMPCMD -t test_query_req_body_XXX.json)
+    $JQ '. + { "config": { "mode": "DRY_RUN" }}' $3 > $req_body_fn
+    ## Now just run a "normal" job.
+    do_run_job $1 $2 $req_body_fn $4
 }
 
 ## Gets the metadata of a given job in a given project.
@@ -548,7 +568,7 @@ function do_order_metadata() {
 ## $1: workspace ID.
 function do_asset_list() {
     ## Get the asset list URL.
-    local asset_list_url=$(build_url "/workspaces/$1/assets/?direction=DESC")
+    local asset_list_url=$(build_url "/workspaces/$1/assets/?sort=createdAt,desc&size=500")
     ## Issue the request.
     $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $asset_list_url
 }
@@ -584,8 +604,8 @@ function do_download_asset() {
     ## Extract the asset filename from the download URL.
     local asset_fn=$(echo "$download_data_url" \
                          | awk -F '&' '{split($1, a, "/")
-                            split(a[length(a)], b, "?")
-                            print b[1]}')
+                                        split(a[length(a)], b, "?")
+                                        print b[1]}')
     ## Check is the download URL is still valid.
     if [ $($DATE +'%s') -gt $expire_date ]; then
         echo "$SCRIPTNAME: Download link has expired."
@@ -599,7 +619,7 @@ function do_download_asset() {
 ## Lists the available operations.
 function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
-    echo -e "run-job\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
+    echo -e "run-job\nrun-test-query\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
     echo -e "get-job-results-json\nget-job-results-download-url\nget-job-results"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
@@ -634,6 +654,12 @@ case "$OPERATION" in
         handle_token
         do_validate_job_params "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY"
         do_run_job "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$NAME"
+        ;;
+    "run-test-query") # run a test query job
+        validate_uuid "$WORKFLOW_ID"
+        handle_token
+        do_validate_job_params "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY"
+        do_test_query "$PROJECT_ID" "$WORKFLOW_ID" "$REQ_BODY" "$NAME"
         ;;
     "get-job-status") # get a job status
         validate_uuid "$JOB_ID"

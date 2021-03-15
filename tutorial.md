@@ -177,13 +177,13 @@ jq -r '.features[].properties.providerProperties as $p | if $p.productionStatus=
 jq -r '.features[].properties as $p | if $p.providerProperties.productionStatus=="IN_CLOUD" then $p.id else empty end'
 ```
 
-## 2. Get the quicklooks for a given image
+## 4. Get the quicklooks for a given image
 
 After obtaining the search results you can now get a low resolution
 preview of an image listed in the search results. For that you need
 the **image ID**. This is an unique identifier for a particular image.
 
-### 2.1 Build a CSV file of archived images
+### 4.1 Build a CSV file of archived images
 
 Let us build a CSV of archived images using `jq`:
 
@@ -248,7 +248,7 @@ DS_PHR1B_201601221016491_FR1_PX_E013N52_0414_00974,d7b782f0-67ca-40ba-88f7-fcbf2
 DS_PHR1B_201601221016051_FR1_PX_E013N52_0414_01032,413579de-82d4-4d18-ad55-be91942b51b0
 ```
 
-### 2.2 Get a specific quicklook
+### 4.2 Get a specific quicklook
 
 Let us get the quicklook for the first image of the list.
 
@@ -291,7 +291,7 @@ for i in $(awk -F ',' ' {s = sprintf("%s %s", s, $2)} END {print s}' archived_im
 Now you should have **all** the quicklooks for the archived images
 in your directory.
 
-## 3. Ordering
+## 5. Ordering
 
 **N.B**: Ordering has costs. Please make sure you are aware of that
 and we recommended you **always** get an estimate of the order cost
@@ -302,7 +302,7 @@ image ID we used above to get the quicklook. Remember that this is the
 most recent image that is available in the archive that we are
 interested in.
 
-## 3.1 Get an order cost estimate
+## 5.1 Get an order cost estimate
 
 Re-using the shell variable we created above we are going to get a
 cost estimate for ordering this image, i.e., how much it will cost us
@@ -377,7 +377,7 @@ This command outputs:
 
 This image will cost **158** credits.
 
-## 3.2 Place the order
+## 5.2 Place the order
 
 Now that we have a cost estimate we are ready to place the order:
 
@@ -399,7 +399,7 @@ The output is:
 This has the order ID. Using the order ID we can inquire the order
 status and download the image when the order is **FULFILLED**.
 
-## 3.3 Get the order status (info)
+## 5.3 Get the order status (info)
 
 Orders can be in one of two status:
 
@@ -445,7 +445,7 @@ that produces:
 
 The order has been `FULLFILLED` we can now proceed to download it.
 
-## 3.4 Download the order asset from User Storage
+## 5.4 Download the order asset from User Storage
 
 Orders get saved to your storage area in UP42 as assets.
 
@@ -487,3 +487,23 @@ up42 -f download-asset -a $ASSET_ID -w $WID
                                  Dload  Upload   Total   Spent    Left  Speed
 100 1592k  100 1592k    0     0   735k      0  0:00:02  0:00:02 --:--:--  735k
 ```
+
+
+## 6. Working with jobs
+
+### 6.1 Run a job
+
+```bash
+
+up42 -f run-job -g $SHIPS_WID  -n "Another job I run" -b job_params.json
+```
+
+where:
+
+ + `-n` is the job name (optional);
+ + `-g` is the workflow ID;
+ + `-b` is the request body, in this case the job parameters.
+
+
+
+###
