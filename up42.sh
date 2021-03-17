@@ -541,6 +541,7 @@ function do_job_results() {
     ## Check if the job name is given. Is so name it accordingly.
     [ -n "$3" ] && out_fn=$(printf 'output_%s.tar.gz' "$3")
     ## Issue the request.
+    echo "$SCRIPTNAME: Saving results to: $out_fn."
     $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
           -o $out_fn "$job_results_url"
 }
