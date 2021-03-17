@@ -146,6 +146,26 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f get-job-results -j <job ID> [-n <name>]"
             exit 0
             ;;
+        "list-public-blocks")
+            echo "Usage: $SCRIPTNAME -f list-public-blocks"
+            exit 0
+            ;;
+        "get-public-block-details")
+            echo "Usage: $SCRIPTNAME -f get-public-block-details -k <block ID>"
+            exit 0
+            ;;
+        "get-public-block-versions")
+            echo "Usage: $SCRIPTNAME -f get-public-block-versions -k <block ID>"
+            exit 0
+            ;;
+        "get-public-block-version")
+            echo "Usage: $SCRIPTNAME -f get-public-block-version -k <block ID> -v <version tag>"
+            exit 0
+            ;;
+        "get-public-block-version-metadata")
+            echo "Usage: $SCRIPTNAME -f get-public-block-version-metadata -k <block ID> -v <version tag>"
+            exit 0
+            ;;
         "list-orders")
             echo "Usage: $SCRIPTNAME -f list-orders -w <workspace ID>"
             exit 0
@@ -188,7 +208,7 @@ function do_display_help() {
     esac
 }
 ## Read the options.
-while getopts Da:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
+while getopts Da:b:c:f:g:h:i:j:k:n:o:p:q:v:w: OPT; do
     case $OPT in
         D|+D)
             DEBUG=1
@@ -217,6 +237,9 @@ while getopts Da:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
         j|+j)
             JOB_ID="$OPTARG"
             ;;
+        k|+k)
+            BLOCK_ID="$OPTARG"
+            ;;
         n|+n)
             NAME="$OPTARG"
             ;;
@@ -228,6 +251,9 @@ while getopts Da:b:c:f:g:h:i:j:n:o:p:q:w: OPT; do
             ;;
         q|+q)
             QUERY_PARAMS="$OPTARG"
+            ;;
+        v|v+)
+            VERSION_TAG="$OPTARG"
             ;;
         w|+w)
             WORKSPACE_ID="$OPTARG"
@@ -408,10 +434,10 @@ function do_run_job() {
 function do_test_query() {
     ## We need to inject the "config": { "mode": "DRY_RUN" } field and value in
     ## the request body.
-    local req_body_fn=$($MKTEMPCMD -t test_query_req_body_XXX.json)
-    $JQ '. + { "config": { "mode": "DRY_RUN" }}' $3 > $req_body_fn
+    TEMP_FN=$($MKTEMPCMD -t test_query_req_body_XXX.json)
+    $JQ '. + { "config": { "mode": "DRY_RUN" }}' $3 > $TEMP_FN
     ## Now just run a "normal" job.
-    do_run_job $1 $2 $req_body_fn $4
+    do_run_job $1 $2 $TEMP_FN $4
 }
 
 ## Gets the metadata of a given job in a given project.
@@ -519,6 +545,55 @@ function do_job_results() {
           -o $out_fn "$job_results_url"
 }
 
+## Lists the publicly available blocks.
+function do_list_public_blocks() {
+    local public_blocks_url=$(build_url "/blocks")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_blocks_url
+}
+
+## Gets the full metadata for a given public block.
+## $1: block ID.
+function do_get_public_block_details() {
+    local public_block_details_url=$(build_url "/blocks/$1")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_block_details_url
+}
+
+## Gets the available versions for a given public block.
+## $1: block ID.
+function do_get_public_block_versions() {
+    local public_block_versions_url=$(build_url "/blocks/$1/versions")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_block_versions_url
+}
+
+## Gets the available versions for a given public block.
+## $1: block ID.
+function do_get_public_block_versions() {
+    local public_block_versions_url=$(build_url "/blocks/$1/versions")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_block_versions_url
+}
+
+## Gets a given version for a given public block.
+## $1: block ID.
+## $2: version tag.
+function do_get_public_block_version() {
+    local public_block_version_url=$(build_url "/blocks/$1/versions/$2")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_block_version_url
+}
+
+## Gets a given version for a given public block.
+## $1: block ID.
+## $2: version tag.
+function do_get_public_block_version_metadata() {
+    local public_block_version_metadata_url=$(build_url "/blocks/$1/versions/$2/metadata")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" $public_block_version_metadata_url
+}
+
 ## $1: request body (JSON document).
 ## $2: workspace ID.
 function do_order_estimation() {
@@ -621,10 +696,16 @@ function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
     echo -e "run-job\nrun-test-query\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
     echo -e "get-job-results-json\nget-job-results-download-url\nget-job-results"
+    echo -e "list-public-blocks\nget-public-block-details\nget-public-block-versions\nget-public-block-version\nget-public-block-version-metadata"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
     echo -e "place-order\nlist-assets\nget-asset-info"
     echo -e "get-asset-download-url\ndownload-asset"
+}
+
+## Cleans up all temporary files created by the script.
+function do_cleanup() {
+    rm $TEMP_FN
 }
 
 ## Read the configuration.
@@ -706,6 +787,35 @@ case "$OPERATION" in
         handle_token
         do_job_results "$PROJECT_ID" "$JOB_ID" "$NAME"
         ;;
+    "list-public-blocks") # get a list of all public blocks
+        handle_token
+        do_list_public_blocks
+        ;;
+    "get-public-block-details") # get the metadata for a given public block
+        validate_uuid $BLOCK_ID
+        handle_token
+        do_get_public_block_details "$BLOCK_ID"
+        ;;
+    "get-public-block-versions") # get the versions for a given public block
+        validate_uuid $BLOCK_ID
+        handle_token
+        do_get_public_block_versions "$BLOCK_ID"
+        ;;
+    "get-public-block-version") # get a given version for a given public block
+        validate_uuid $BLOCK_ID
+        handle_token
+        do_get_public_block_version "$BLOCK_ID" "$VERSION_TAG"
+        ;;
+    "get-public-block-version-metadata") # get a given version for a given public block
+        validate_uuid $BLOCK_ID
+        handle_token
+        do_get_public_block_version_metadata "$BLOCK_ID" "$VERSION_TAG"
+        ;;
+    "get-public-block-versions") # get a list of all public blocks
+        validate_uuid $BLOCK_ID
+        handle_token
+        do_get_public_block_versions "$BLOCK_ID"
+        ;;
     "list-orders") # get all orders
         validate_uuid "$WORKSPACE_ID"
         handle_token
@@ -760,6 +870,9 @@ case "$OPERATION" in
         print_usage
         exit 12
 esac
+
+## Cleanup all temporary files.
+[ -n "$TEMP_FN" ] && trap do_cleanup EXIT ERR SIGINT SIGQUIT
 
 ## Untrace Bash execution if DEBUG is set.
 [ -n "$DEBUG" ] && set +x
