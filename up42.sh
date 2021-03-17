@@ -146,6 +146,18 @@ function do_display_help() {
             echo "Usage: $SCRIPTNAME -f get-job-results -j <job ID> [-n <name>]"
             exit 0
             ;;
+        "get-job-task-results-download-url")
+            echo "Usage: $SCRIPTNAME -f get-job-task-results-download-url -j <job ID> -t <task ID>"
+            exit 0
+            ;;
+        "get-job-task-results")
+            echo "Usage: $SCRIPTNAME -f get-job-task-results -j <job ID> -t <task ID> [-n <name>]"
+            exit 0
+            ;;
+        "get-job-task-logs")
+            echo "Usage: $SCRIPTNAME -f get-job-task-logs -j <job ID> -t <task ID> [-n <name>]"
+            exit 0
+            ;;
         "list-public-blocks")
             echo "Usage: $SCRIPTNAME -f list-public-blocks"
             exit 0
@@ -208,7 +220,7 @@ function do_display_help() {
     esac
 }
 ## Read the options.
-while getopts Da:b:c:f:g:h:i:j:k:n:o:p:q:v:w: OPT; do
+while getopts Da:b:c:f:g:h:i:j:k:n:o:p:q:t:v:w: OPT; do
     case $OPT in
         D|+D)
             DEBUG=1
@@ -251,6 +263,9 @@ while getopts Da:b:c:f:g:h:i:j:k:n:o:p:q:v:w: OPT; do
             ;;
         q|+q)
             QUERY_PARAMS="$OPTARG"
+            ;;
+        t|+t)
+            TASK_ID="$OPTARG"
             ;;
         v|v+)
             VERSION_TAG="$OPTARG"
@@ -496,17 +511,6 @@ function do_job_rename() {
           -d "$data" $job_rename_url
 }
 
-## Gets a given job tasks.
-## $1: project ID.
-## $2: job ID.
-function do_job_tasks() {
-    ## Get the job tasks URL.
-    local job_tasks_url=$(build_url "/projects/$1/jobs/$2/tasks")
-    ## Issue the request.
-    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
-          -H 'Content-Type: application/json' $job_tasks_url
-}
-
 ## Gets a the GeoJSON output of a job (metadata).
 ## $1: project ID.
 ## $2: job ID.
@@ -535,15 +539,73 @@ function do_job_results_download_url() {
 ## $3: output archive name (optional)
 function do_job_results() {
     ## Get the results signed download URL.
-    local job_results_url=$(do_job_results_download_url $1 $2 | $JQ -r '.data.url')
+    local job_task_results_url=$(do_job_task_results_download_url $1 $2 | $JQ -r '.data.url')
     ## Default output archive name.
-    local out_fn=$(printf 'output_%s_%s.tar.gz' "$1" "$2")
+    local out_fn=$(printf 'output_%s_%s_%s.tar.gz' "$1" "$2" "$3")
     ## Check if the job name is given. Is so name it accordingly.
-    [ -n "$3" ] && out_fn=$(printf 'output_%s.tar.gz' "$3")
+    [ -n "$3" ] && out_fn=$(printf 'output_%s.tar.gz' $(echo $3 | tr '[ ]' '_'))
     ## Issue the request.
     echo "$SCRIPTNAME: Saving results to: $out_fn."
     $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
-          -o $out_fn "$job_results_url"
+          -o $out_fn "$job_task_results_url"
+}
+
+## Gets a given job tasks.
+## $1: project ID.
+## $2: job ID.
+function do_job_tasks() {
+    ## Get the job tasks URL.
+    local job_tasks_url=$(build_url "/projects/$1/jobs/$2/tasks")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_tasks_url
+}
+
+## Gets the JSON with a signed URL to download a given job task results.
+## $1: project ID.
+## $2: job ID.
+## $3: task ID.
+function do_job_task_results_download_url() {
+    ## Get the job GeoJSON output URL.
+    local job_task_results_download_url=$(build_url "/projects/$1/jobs/$2/tasks/$3/downloads/results")
+    ## Issue the request.
+    $CURL $CURLOPTS -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Content-Type: application/json' $job_task_results_download_url
+}
+
+# Gets a given task results as a tarball.
+## $1: project ID.
+## $2: job ID.
+## $3: task ID.
+## $4: output archive name (optional)
+function do_job_task_results() {
+    ## Get the results signed download URL.
+    local job_task_results_url=$(do_job_task_results_download_url $1 $2 $3 | $JQ -r '.data.url')
+    ## Default output archive name.
+    local out_fn=$(printf 'output_%s_%s_%s.tar.gz' "$1" "$2" "$3")
+    ## Check if the job name is given. Is so name it accordingly.
+    [ -n "$4" ] && out_fn=$(printf 'output_%s.tar.gz' $(echo $4 | tr '[ ]' '_'))
+    ## Issue the request.
+    echo "$SCRIPTNAME: Saving logs to: $out_fn."
+    $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
+          -o $out_fn "$job_task_results_url"
+}
+
+# Gets a given task logs.
+## $1: project ID.
+## $2: job ID.
+## $3: task ID.
+## $4: name (optional).
+function do_job_task_logs() {
+    ## The endpoint for this.
+    local job_task_logs_url=$(build_url "/projects/$1/jobs/$2/tasks/$3/logs")
+    ## Default output archive name.
+    local out_fn=$(printf 'output_%s_%s_%s.log' "$1" "$2" "$3")
+    [ -n "$4" ] && out_fn=$(printf 'output_%s.log' $(echo $4 | tr '[ ]' '_'))
+    ## Issue the request.
+    echo "$SCRIPTNAME: Saving results to: $out_fn."
+    $CURL -L -H "Authorization: Bearer $UP42_TOKEN" \
+          -H 'Accept: text/plain' "$job_task_logs_url" > $out_fn
 }
 
 ## Lists the publicly available blocks.
@@ -697,6 +759,7 @@ function do_list_operations() {
     echo "$SCRIPTNAME: Available operations."
     echo -e "run-job\nrun-test-query\nget-job-status\nget-job-info\ncancel-job\nrerun-job\nrename-job\nget-job-tasks"
     echo -e "get-job-results-json\nget-job-results-download-url\nget-job-results"
+    echo -e "get-job-task-results\nget-job-task-logs\nget-job-task-block\nlist-job-task-quicklooks\nget-job-task-quicklook"
     echo -e "list-public-blocks\nget-public-block-details\nget-public-block-versions\nget-public-block-version\nget-public-block-version-metadata"
     echo -e "search\nget-quicklook\nlist-orders"
     echo -e "get-order-info\nget-order-metadata\nestimate-order"
@@ -787,6 +850,24 @@ case "$OPERATION" in
         validate_uuid "$JOB_ID"
         handle_token
         do_job_results "$PROJECT_ID" "$JOB_ID" "$NAME"
+        ;;
+    "get-job-task-results-download-url") # get a job task output download URL
+        validate_uuid "$JOB_ID"
+        validate_uuid "$TASK_ID"
+        handle_token
+        do_job_task_results_download_url "$PROJECT_ID" "$JOB_ID" "$TASK_ID"
+        ;;
+    "get-job-task-results") # get a job task results (output)
+        validate_uuid "$JOB_ID"
+        validate_uuid "$TASK_ID"
+        handle_token
+        do_job_task_results "$PROJECT_ID" "$JOB_ID" "$TASK_ID" "$NAME"
+        ;;
+    "get-job-task-logs") # get a job task results (output)
+        validate_uuid "$JOB_ID"
+        validate_uuid "$TASK_ID"
+        handle_token
+        do_job_task_logs "$PROJECT_ID" "$JOB_ID" "$TASK_ID" "$NAME"
         ;;
     "list-public-blocks") # get a list of all public blocks
         handle_token
